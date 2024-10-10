@@ -1,0 +1,27 @@
+/* src/styles/globals.css */
+html, body {
+    height: 100%;
+    margin: 0;
+  }
+  
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  .section {
+    flex-grow: 1;
+  }
+  
+  /* src/styles/globals.css */
+
+.navbar-item.is-active {
+    background-color: #00d1b2; /* Gaya aktif untuk item navbar */
+    color: white; /* Ubah warna text menjadi putih */
+  }
+  
+  .navbar-item.is-active:hover {
+    background-color: #00c4a7; /* Gaya hover jika item sedang aktif */
+  }
+  
