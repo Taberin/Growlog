@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <footer className="footer">
           <div className="content has-text-centered">
             <p>
-              <strong>GrowLog</strong> by <a href="https://your-link.com">Your Name</a>. The source code is licensed MIT.
+              <strong>GrowLog</strong> by <a href="https://github.com/Taberin">Taberin</a>. The source code is licensed MIT.
             </p>
           </div>
         </footer>

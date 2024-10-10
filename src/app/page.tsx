@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import ExpertSystem from "../components/ExpertSystem";
 import { Line, Bar, Pie, Scatter } from "react-chartjs-2";
-import { Chart as ChartJS, LineElement, BarElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend, ArcElement } from "chart.js";
+import ExpertSystem from "../components/ExpertSystem";
 
-// Register Chart.js components
+// Register chart.js components as before...
+import { Chart as ChartJS, LineElement, BarElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend, ArcElement } from "chart.js";
 ChartJS.register(LineElement, BarElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend, ArcElement);
 
-// Data interface for Firestore documents
+// Data interface
 interface ProgressData {
   person: string;
   date: string;
@@ -23,14 +23,21 @@ interface ProgressData {
 
 export default function HomePage() {
   const [data, setData] = useState<ProgressData[]>([]);
-  const [filter, setFilter] = useState("7days"); // Default filter
+  const [filter, setFilter] = useState("7days"); // Default time filter
+  const [personFilter, setPersonFilter] = useState("All"); // Default person filter
+  const [subjectFilter, setSubjectFilter] = useState<string[]>(["All"]); // Default subject filter to All
 
+  // Fetching from environment and adding "All" option
+  const personList = ["All", ...(process.env.NEXT_PUBLIC_PERSON_LIST?.split(",") || [])];
+  const subjectList = process.env.NEXT_PUBLIC_SUBJECT_LIST?.split(",") || [];
+
+  // Fetch data based on filters
   useEffect(() => {
     const fetchData = async () => {
       const today = new Date();
       let startDate = new Date();
-
-      // Calculate the start date based on the filter
+  
+      // Calculate start date based on the time filter
       switch (filter) {
         case "7days":
           startDate.setDate(today.getDate() - 7);
@@ -47,25 +54,68 @@ export default function HomePage() {
         default:
           startDate.setDate(today.getDate() - 7);
       }
-
-      const q = query(
-        collection(db, "progressData"),
-        where("createdAt", ">=", Timestamp.fromDate(startDate))
-      );
+  
+      // Convert startDate to YYYY-MM-DD format string
+      const formattedStartDate = startDate.toISOString().split("T")[0];
+  
+      // Create the query with the "date" field instead of "createdAt"
+      let conditions: any[] = [where("date", ">=", formattedStartDate)];
+  
+      // Apply person filter if not "All"
+      if (personFilter !== "All") {
+        conditions.push(where("person", "==", personFilter));
+      }
+  
+      // Apply subject filter only if specific subjects are selected (excluding "All")
+      if (subjectFilter.length > 0 && !subjectFilter.includes("All")) {
+        conditions.push(where("subject", "in", subjectFilter));
+      }
+  
+      const q = query(collection(db, "progressData"), ...conditions);
       const querySnapshot = await getDocs(q);
       const progressList = querySnapshot.docs.map((doc) => doc.data() as ProgressData);
       setData(progressList);
     };
-
+  
     fetchData();
-  }, [filter]); // Fetch data when the filter changes
+  }, [filter, personFilter, subjectFilter]); // Refetch when any filter changes
+  
 
-  // Filter change handler
+  // Handle time filter change
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFilter(e.target.value);
   };
 
-  // Data for Line Chart (Correct Answers Over Time)
+  // Handle person filter change
+  const handlePersonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPersonFilter(e.target.value);
+  };
+
+  // Handle subject filter change (checkbox)
+  const handleSubjectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedSubject = e.target.value;
+    const isChecked = e.target.checked;
+
+    if (selectedSubject === "All") {
+      // If "All" is checked, select all subjects
+      setSubjectFilter(isChecked ? ["All", ...subjectList] : []);
+    } else {
+      setSubjectFilter((prev) => {
+        // Remove "All" if a specific subject is unchecked
+        const updated = isChecked ? [...prev, selectedSubject] : prev.filter((subj) => subj !== selectedSubject);
+
+        // If all subjects are selected, add "All"
+        if (updated.length === subjectList.length) {
+          return ["All", ...updated];
+        }
+
+        // If any subject is unchecked, remove "All"
+        return updated.filter((subj) => subj !== "All");
+      });
+    }
+  };
+
+  // Data for charts (you can keep the charts from before)
   const lineChartData = {
     labels: data.map((item) => item.date),
     datasets: [
@@ -79,8 +129,7 @@ export default function HomePage() {
     ],
   };
 
-  // Data for Bar Chart (Performance by Subject)
-  const subjects = [...new Set(data.map((item) => item.subject))]; // Unique subjects
+  const subjects = [...new Set(data.map((item) => item.subject))]; // Unique subjects for charts
   const barChartData = {
     labels: subjects,
     datasets: [
@@ -96,7 +145,6 @@ export default function HomePage() {
     ],
   };
 
-  // Data for Pie Chart (Distribution by Subject)
   const pieChartData = {
     labels: subjects,
     datasets: [
@@ -105,19 +153,11 @@ export default function HomePage() {
         data: subjects.map((subject) =>
           data.filter((item) => item.subject === subject).reduce((acc, curr) => acc + curr.correct, 0)
         ),
-        backgroundColor: [
-          "#FF6384",
-          "#36A2EB",
-          "#FFCE56",
-          "#4BC0C0",
-          "#9966FF",
-          "#FF9F40",
-        ],
+        backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40"],
       },
     ],
   };
 
-  // Data for Scatter Plot (Attempted vs Correct)
   const scatterData = {
     datasets: [
       {
@@ -136,8 +176,6 @@ export default function HomePage() {
       <div className="container">
         <h1 className="title">Data Visualization</h1>
 
-        <ExpertSystem filter={filter} />
-
         {/* Filter for time range */}
         <div className="field">
           <label className="label">Filter by time range</label>
@@ -150,6 +188,40 @@ export default function HomePage() {
                 <option value="3months">3 Months</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        {/* Person Filter */}
+        <div className="field">
+          <label className="label">Filter by Person</label>
+          <div className="control">
+            <div className="select">
+              <select value={personFilter} onChange={handlePersonChange}>
+                {personList.map((person) => (
+                  <option key={person} value={person}>
+                    {person}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Subject Filter */}
+        <div className="field">
+          <label className="label">Filter by Subject</label>
+          <div className="control">
+            {["All", ...subjectList].map((subject) => (
+              <label key={subject} className="checkbox">
+                <input
+                  type="checkbox"
+                  value={subject}
+                  checked={subjectFilter.includes(subject)}
+                  onChange={handleSubjectChange}
+                />
+                {subject}
+              </label>
+            ))}
           </div>
         </div>
 
@@ -176,6 +248,9 @@ export default function HomePage() {
           <h2 className="subtitle">Attempted vs Correct (Scatter Plot)</h2>
           <Scatter data={scatterData} />
         </div>
+
+        {/* Expert System */}
+        <ExpertSystem filter={filter} personFilter={personFilter} />
       </div>
     </main>
   );

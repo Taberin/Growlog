@@ -22,7 +22,7 @@ interface Conclusion {
   recommendation: string;
 }
 
-export default function ExpertSystem({ filter }: { filter: string }) {
+export default function ExpertSystem({ filter, personFilter }: { filter: string, personFilter: string }) {
   const [data, setData] = useState<ProgressData[]>([]);
   const [conclusion, setConclusion] = useState<Conclusion | null>(null);
 
@@ -30,8 +30,8 @@ export default function ExpertSystem({ filter }: { filter: string }) {
     const fetchData = async () => {
       const today = new Date();
       let startDate = new Date();
-
-      // Calculate start date based on filter
+  
+      // Calculate start date based on the time filter
       switch (filter) {
         case "7days":
           startDate.setDate(today.getDate() - 7);
@@ -48,18 +48,27 @@ export default function ExpertSystem({ filter }: { filter: string }) {
         default:
           startDate.setDate(today.getDate() - 7);
       }
-
-      const q = query(
-        collection(db, "progressData"),
-        where("createdAt", ">=", Timestamp.fromDate(startDate))
-      );
+  
+      // Convert startDate to YYYY-MM-DD format string (assuming date is stored as string)
+      const formattedStartDate = startDate.toISOString().split("T")[0];
+  
+      // Create the query with the "date" field instead of "createdAt"
+      let conditions: any[] = [where("date", ">=", formattedStartDate)];
+  
+      // Apply person filter if not "All"
+      if (personFilter !== "All") {
+        conditions.push(where("person", "==", personFilter));
+      }
+  
+      const q = query(collection(db, "progressData"), ...conditions);
       const querySnapshot = await getDocs(q);
       const progressList = querySnapshot.docs.map((doc) => doc.data() as ProgressData);
       setData(progressList);
     };
-
+  
     fetchData();
-  }, [filter]);
+  }, [filter, personFilter]); // Fetch data when filter or personFilter changes
+  
 
   useEffect(() => {
     if (data.length > 0) {
@@ -67,7 +76,6 @@ export default function ExpertSystem({ filter }: { filter: string }) {
     }
   }, [data]);
 
-  // Function to generate expert system conclusions
   const generateConclusion = () => {
     let totalCorrect = 0;
     let totalQuestions = 0;
@@ -83,7 +91,7 @@ export default function ExpertSystem({ filter }: { filter: string }) {
       }
     });
 
-    // Overall performance
+    // Overall performance calculation
     const overallPerformance = totalCorrect / totalQuestions > 0.8 ? "Good" : totalCorrect / totalQuestions > 0.5 ? "Average" : "Needs Improvement";
 
     // Best and worst subject
@@ -97,9 +105,12 @@ export default function ExpertSystem({ filter }: { filter: string }) {
     const trend = lastEntry.correct > firstEntry.correct ? "Improving" : lastEntry.correct < firstEntry.correct ? "Declining" : "Stable";
 
     // Recommendation based on performance
-    const recommendation = overallPerformance === "Needs Improvement" ? "Focus on reviewing the materials and try more exercises." : 
-      overallPerformance === "Average" ? "Keep practicing and improve on weak areas." : 
-      "Great job! Keep up the good work!";
+    const recommendation =
+      overallPerformance === "Needs Improvement"
+        ? "Focus on reviewing the materials and try more exercises."
+        : overallPerformance === "Average"
+        ? "Keep practicing and improve on weak areas."
+        : "Great job! Keep up the good work!";
 
     setConclusion({
       overallPerformance,
