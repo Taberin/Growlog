@@ -52,7 +52,33 @@ NEXT_PUBLIC_PERSON_LIST=Ali,Budi,Citra,Dewi
 NEXT_PUBLIC_FIRESTORE_WRITE_TOKEN=YOUR_FIRESTORE_WRITE_TOKEN
 ```
 
-### 4\. Run the Application
+### 4\. Firestore Rules
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Match all documents
+    match /{document=**} {
+
+      allow read: if true;  // Allow read for everyone
+
+      // Allow write only if the provided token matches the pre-defined token
+      allow write: if request.resource.data.token == YOUR_FIRESTORE_WRITE_TOKEN;
+    }
+  }
+}
+```
+
+### 5\. Firestore Indexes
+
+- **Collection ID**: progressData, **Fields**: `person` Ascending, `date` Ascending, `__name__` Ascending
+- **Collection ID**: progressData, **Fields**: `person` Descending, `date` Descending, `__name__` Descending
+- **Collection ID**: progressData, **Fields**: `person` Descending, `date` Descending, `subject` Ascending, `__name__` Ascending
+- **Collection ID**: progressData, **Fields**: `subject` Ascending, `date` Ascending, `__name__` Ascending
+
+### 6\. Run the Application
 
 ```bash
 npm run dev
