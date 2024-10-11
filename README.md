@@ -2,6 +2,8 @@
 
 **GrowLog** is an application designed to track children's learning progress with features for data input, data visualization, and conclusion generation based on performance analysis. This app allows you to monitor and analyze the performance of children across various subjects.
 
+Checkout our [Demo](https://growlog-dev.vercel.app/).
+
 ## Key Features
 
 - **Progress Input**: Input learning progress data, including subjects, the number of questions attempted, and correct answers.
