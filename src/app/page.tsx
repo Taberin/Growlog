@@ -129,7 +129,7 @@ export default function HomePage() {
     ],
   };
 
-  const subjects = [...new Set(data.map((item) => item.subject))]; // Unique subjects for charts
+  const subjects = Array.from(new Set(data.map((item) => item.subject))); // Unique subjects for charts
   const barChartData = {
     labels: subjects,
     datasets: [
